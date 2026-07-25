@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4
+
+- New: `fontsize` toolbar dropdown (Small / Normal / Large / Larger / Huge /
+  Massive). Uses `document.execCommand("fontSize")` with browser size values
+  2–7. Added to the default toolbar after `format`. The dropdown syncs to
+  reflect the current selection's font size.
+
 ## 0.1.3
 
 - Fix: toolbar actions now restore the editor selection first, so commands run on
