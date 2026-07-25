@@ -179,3 +179,28 @@ textarea.rmeditor.rme-hidden {
 .rmeditor-wrap[data-theme="dark"] .rme-btn:hover { background: #333747; }
 .rmeditor-wrap[data-theme="dark"] .rme-select { background: #262932; }
 .rmeditor-wrap[data-theme="dark"] .rme-palette { background: #262932; }
+
+/* Source code mode */
+.rmeditor-wrap.rme-source-mode .rme-area {
+  display: none;
+}
+.rmeditor-wrap.rme-source-mode textarea.rmeditor {
+  display: block !important;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 180px;
+  border: none;
+  padding: 12px 14px;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--rme-fg);
+  background: var(--rme-bg);
+  resize: vertical;
+}
+.rmeditor-wrap.rme-source-mode .rme-toolbar .rme-btn:not(.rme-source-btn),
+.rmeditor-wrap.rme-source-mode .rme-toolbar .rme-select {
+  opacity: 0.4;
+  pointer-events: none;
+}

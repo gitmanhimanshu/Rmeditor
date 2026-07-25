@@ -104,11 +104,10 @@ class ArticleForm(forms.ModelForm):
 
 ## Toolbar tokens
 
-`format` (paragraph/H1/H2/H3 dropdown), `fontsize` (Small/Normal/Large/Larger/Huge/Massive
-dropdown), `bold`, `italic`, `underline`, `strike`,
-`forecolor`, `bullist`, `numlist`, `indent`, `outdent`, `alignleft`, `aligncenter`,
-`alignright`, `justify`, `link`, `unlink`, `image`, `table`, `rowadd`, `rowdel`,
-`coladd`, `coldel`, `removeformat`, `undo`, `redo`.
+`format` (paragraph/H1/H2/H3 dropdown), `fontsize` (px-based dropdown), `bold`, `italic`,
+`underline`, `strike`, `forecolor`, `bullist`, `numlist`, `indent`, `outdent`, `alignleft`,
+`aligncenter`, `alignright`, `justify`, `link`, `unlink`, `image`, `table`, `rowadd`,
+`rowdel`, `coladd`, `coldel`, `removeformat`, `source` (view HTML), `undo`, `redo`.
 
 Table tokens: `table` inserts a table (prompts for rows,columns); `rowadd`/`rowdel`
 add/delete a row and `coladd`/`coldel` add/delete a column relative to the cell the

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6
+
+- New: `source` toolbar token to toggle HTML source view. When active, it displays
+  the underlying raw HTML in a monospace textarea, allowing manual editing. Other
+  toolbar buttons are disabled while in source mode.
+
 ## 0.1.5
 
 - Improved: `fontsize` dropdown now shows real px numbers (8, 10, 12, 14, 16,

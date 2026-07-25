@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.5";
+  var VERSION = "0.1.6";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -44,6 +44,7 @@
     image: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/>'),
     removeformat: svg('<path d="M7 6h11M11 6l-3 12M5 20h6"/><path d="M17 14l4 4M21 14l-4 4"/>'),
     table: svg('<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9.5h18M3 15h18M9 4v16M15 4v16"/>'),
+    code: svg('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>'),
   };
 
   // ---- toolbar buttons ----------------------------------------------------
@@ -73,13 +74,14 @@
     rowdel:      { title: "Delete row",       text: "−R", fn: "rowdel" },
     coladd:      { title: "Add column right", text: "+C", fn: "coladd" },
     coldel:      { title: "Delete column",    text: "−C", fn: "coldel" },
+    source:      { title: "View HTML",        icon: ICON.code, fn: "source", cls: "rme-source-btn" },
   };
 
   // "format" is a special dropdown token (block format select).
   var DEFAULT_TOOLS =
     "format fontsize | bold italic underline strike forecolor | bullist numlist indent outdent | " +
     "alignleft aligncenter alignright | link image | table rowadd rowdel coladd coldel | " +
-    "removeformat | undo redo";
+    "removeformat source | undo redo";
 
   var instances = []; // all live editors
 
@@ -166,11 +168,16 @@
     this.wrap = wrap;
     this.area = area;
     this.buttons = {};
+    this.isSourceMode = false;
 
     buildToolbar(self, toolbar, toolsStr);
 
     // Keep the textarea in sync so the form submits current HTML.
-    function sync() { textarea.value = area.innerHTML; }
+    function sync() {
+      if (!self.isSourceMode) {
+        textarea.value = area.innerHTML;
+      }
+    }
     this.sync = sync;
 
     // Remember the last real caret/selection inside the area. Clicking a toolbar
@@ -471,6 +478,18 @@
       var url = window.prompt("Image URL:", "https://");
       if (!url) return;
       self.exec("insertImage", url);
+    },
+    source: function (self, btn) {
+      self.isSourceMode = !self.isSourceMode;
+      if (self.isSourceMode) {
+        self.sync(); // push rich text to textarea just in case
+        self.wrap.classList.add("rme-source-mode");
+        btn.classList.add("rme-active");
+      } else {
+        self.area.innerHTML = clean(self.textarea.value, false) || "";
+        self.wrap.classList.remove("rme-source-mode");
+        btn.classList.remove("rme-active");
+      }
     },
     forecolor: function (self, btn) { togglePalette(self, btn); },
   };
