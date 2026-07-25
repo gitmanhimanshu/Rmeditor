@@ -8,6 +8,10 @@
 - Toolbar: undo/redo, headings, bold/italic/underline/strike, text color,
   ordered/unordered lists, indent/outdent, align, link, image, remove format.
 - Configurable toolbar per field via `data-tools`.
+- Autochange mode: auto-enhance every matching textarea without a class
+  (`{% rmeditor_media auto="textarea" %}`, `RMEditor.auto(selector)`, or
+  `window.RMEDITOR_AUTO`), like tinymce's `selector:'textarea'`. Opt out with
+  `class="no-rmeditor"` or `data-rmeditor="off"`.
 - Existing content pre-fill; multiple editors per page.
 - Paste cleaning (strips Word/Office/pasted junk) + basic XSS sanitize on save.
 - Django form widget `RichTextWidget`, model field `RichTextField`,

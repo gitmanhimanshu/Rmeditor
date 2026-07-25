@@ -20,6 +20,7 @@
   "use strict";
 
   var VERSION = "0.1.0";
+  var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
   function svg(inner) {
@@ -313,14 +314,55 @@
     },
   };
 
+  // ---- autochange (auto-enhance textareas without a class) ----------------
+  var autoSelector = null; // when set, every matching <textarea> becomes an editor
+
+  function optedOut(ta) {
+    return ta.classList.contains("no-rmeditor") ||
+           ta.getAttribute("data-rmeditor") === "off";
+  }
+
+  function enhanceMatch(scope, selector) {
+    var list = scope.querySelectorAll(selector);
+    for (var i = 0; i < list.length; i++) {
+      var ta = list[i];
+      if (ta.tagName !== "TEXTAREA" || ta._rmeditor || optedOut(ta)) continue;
+      new Editor(ta);
+    }
+  }
+
+  // Read the auto selector from window.RMEDITOR_AUTO or <script ... data-auto="...">.
+  function readAutoConfig() {
+    if (window.RMEDITOR_AUTO) return window.RMEDITOR_AUTO;
+    var s = SCRIPT;
+    if (!s) {
+      var all = document.getElementsByTagName("script");
+      for (var i = all.length - 1; i >= 0; i--) {
+        if (all[i].src && all[i].src.indexOf("rmeditor.js") !== -1) { s = all[i]; break; }
+      }
+    }
+    return s && s.getAttribute("data-auto") ? s.getAttribute("data-auto") : null;
+  }
+
   // ---- public API ---------------------------------------------------------
   var RMEditor = {
     version: VERSION,
-    enhance: function (node) { if (node && node.tagName === "TEXTAREA") return new Editor(node); },
+    enhance: function (node) {
+      if (node && node.tagName === "TEXTAREA" && !node._rmeditor && !optedOut(node))
+        return new Editor(node);
+    },
     enhanceAll: function (root) {
       var scope = root || document;
-      var list = scope.querySelectorAll("textarea.rmeditor:not(.rme-hidden)");
-      for (var i = 0; i < list.length; i++) new Editor(list[i]);
+      enhanceMatch(scope, "textarea.rmeditor");
+      if (autoSelector) enhanceMatch(scope, autoSelector);
+    },
+    // autochange: turn EVERY matching textarea into an editor without adding a
+    // class (like tinymce's selector:'textarea'). Opt a textarea out with
+    // class "no-rmeditor" or attribute data-rmeditor="off".
+    auto: function (selector) {
+      autoSelector = selector || "textarea";
+      RMEditor.enhanceAll();
+      return RMEditor;
     },
     get: resolve,
     getHTML: function (t) { var e = resolve(t); return e ? e.getHTML() : ""; },
@@ -331,10 +373,15 @@
 
   window.RMEditor = RMEditor;
 
-  // Auto-enhance on load.
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () { RMEditor.enhanceAll(); });
-  } else {
+  // Boot: pick up autochange config, then enhance.
+  function boot() {
+    var cfg = readAutoConfig();
+    if (cfg) autoSelector = cfg;
     RMEditor.enhanceAll();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
   }
 })(window, document);

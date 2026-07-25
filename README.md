@@ -49,6 +49,33 @@ Make sure `django.contrib.staticfiles` is set up (it is by default) and run
 The textarea stays in the form (hidden) and always holds the current HTML, so your
 existing view code that reads `request.POST["body"]` keeps working unchanged.
 
+### Autochange — enhance every textarea (no class needed)
+
+To convert **all** textareas on a page into editors without touching each one
+(like tinymce's `selector:'textarea'`), enable autochange:
+
+```django
+{% load rmeditor %}
+{% rmeditor_media auto="textarea" %}   {# every <textarea> becomes an editor #}
+```
+
+or from JS:
+
+```html
+<script src="/static/rmeditor/js/rmeditor.js"></script>
+<script>RMEditor.auto("textarea");</script>   <!-- or any CSS selector -->
+```
+
+or globally before the script loads:
+
+```html
+<script>window.RMEDITOR_AUTO = "textarea.rich";</script>
+```
+
+Opt a textarea out of autochange with `class="no-rmeditor"` or `data-rmeditor="off"`.
+This makes replacing tinymce a one-line change: swap the tinymce script/`init` for
+`{% rmeditor_media auto="textarea" %}`.
+
 ### 2. Model field
 
 ```python
