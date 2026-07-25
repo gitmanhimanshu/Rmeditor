@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>rmeditor demo</title>
+  <link rel="stylesheet" href="../src/rmeditor/static/rmeditor/css/rmeditor.css">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 820px; margin: 30px auto; padding: 0 16px; }
+    h1 { color: #27338f; }
+    label { font-weight: 600; display: block; margin: 18px 0 6px; }
+    button { margin-top: 14px; padding: 8px 16px; background: #27338f; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+    pre { background: #f6f7fb; padding: 12px; border-radius: 6px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>rmeditor demo</h1>
+  <p>Open this file in a browser. No server needed — this tests the editor standalone.</p>
+
+  <form onsubmit="showOutput(event)">
+    <label>Full toolbar (pre-filled)</label>
+    <textarea class="rmeditor" name="a" data-placeholder="Type here...">
+      <h2>Existing content</h2>
+      <p>This HTML was already in the textarea. It should appear <strong>rendered</strong>, not blank.</p>
+      <ul><li>bullet one</li><li>bullet two</li></ul>
+    </textarea>
+
+    <label>Custom toolbar (bold/italic/link only)</label>
+    <textarea class="rmeditor" name="b" data-tools="bold italic underline | link"
+              data-placeholder="Minimal editor..."></textarea>
+
+    <button type="submit">Show submitted HTML</button>
+  </form>
+
+  <h3>Submitted values</h3>
+  <pre id="out">(submit to see)</pre>
+
+  <script src="../src/rmeditor/static/rmeditor/js/rmeditor.js"></script>
+  <script>
+    function showOutput(e) {
+      e.preventDefault();
+      RMEditor.syncAll();
+      var f = e.target;
+      document.getElementById("out").textContent =
+        "a =\n" + f.a.value + "\n\nb =\n" + f.b.value +
+        "\n\nRMEditor.getText(a) = " + JSON.stringify(RMEditor.getText(f.a));
+    }
+  </script>
+</body>
+</html>
