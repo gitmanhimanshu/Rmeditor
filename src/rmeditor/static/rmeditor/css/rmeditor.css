@@ -7,10 +7,10 @@
   --rme-bar: #f6f7fb;
   --rme-fg: #23262f;
   --rme-muted: #6b7280;
+  position: relative;
   border: 1px solid var(--rme-border);
   border-radius: 6px;
   background: var(--rme-bg);
-  overflow: hidden;
   font-family: inherit;
 }
 
@@ -28,6 +28,7 @@
   padding: 5px 6px;
   background: var(--rme-bar);
   border-bottom: 1px solid var(--rme-border);
+  border-radius: 5px 5px 0 0;
 }
 
 .rme-btn {
@@ -73,6 +74,41 @@
 .rme-btn.rme-i   { font-style: italic; font-family: Georgia, serif; }
 .rme-btn.rme-u   { text-decoration: underline; }
 .rme-btn.rme-s   { text-decoration: line-through; }
+.rme-btn.rme-color {
+  font-weight: 700;
+  border-bottom: 3px solid #e60000;
+  border-radius: 4px 4px 2px 2px;
+}
+
+/* Text-colour palette popup */
+.rme-palette {
+  position: absolute;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(5, 22px);
+  gap: 5px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--rme-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.rme-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.rme-swatch:hover { transform: scale(1.12); }
+.rme-swatch-custom {
+  background: #fff;
+  color: var(--rme-fg);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+}
 
 .rme-sep {
   width: 1px;

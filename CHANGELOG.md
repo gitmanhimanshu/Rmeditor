@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+- Fix: toolbar actions now restore the editor selection first, so commands run on
+  the text you had selected even after clicking a button. This fixes column delete
+  removing the wrong column and text colour not applying.
+- New: text colour is now a visible swatch palette (with a custom hex option)
+  instead of a hidden native colour input that dropped the selection.
+
 ## 0.1.2
 
 - New: table support. `table` inserts a table (rows,columns prompt); `rowadd`,

@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.2";
+  var VERSION = "0.1.3";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -55,7 +55,7 @@
     italic:      { title: "Italic",          text: "I", cls: "rme-i", cmd: "italic" },
     underline:   { title: "Underline",       text: "U", cls: "rme-u", cmd: "underline" },
     strike:      { title: "Strikethrough",   text: "S", cls: "rme-s", cmd: "strikeThrough" },
-    forecolor:   { title: "Text color",      text: "A", fn: "forecolor" },
+    forecolor:   { title: "Text color",      text: "A", cls: "rme-color", fn: "forecolor" },
     bullist:     { title: "Bulleted list",   icon: ICON.bullist,     cmd: "insertUnorderedList" },
     numlist:     { title: "Numbered list",   icon: ICON.numlist,     cmd: "insertOrderedList" },
     indent:      { title: "Increase indent", icon: ICON.indent,      cmd: "indent" },
@@ -173,14 +173,28 @@
     function sync() { textarea.value = area.innerHTML; }
     this.sync = sync;
 
+    // Remember the last real caret/selection inside the area. Clicking a toolbar
+    // button (outside the contenteditable) or opening a native dialog can drop the
+    // selection, so we save it here and restore it before running any command.
+    this._range = null;
+    function saveSel() {
+      var s = window.getSelection();
+      if (s && s.rangeCount) {
+        var r = s.getRangeAt(0);
+        if (area.contains(r.commonAncestorContainer)) self._range = r.cloneRange();
+      }
+    }
+    this.saveSel = saveSel;
+
     area.addEventListener("input", function () {
+      saveSel();
       sync();
       updateActive(self);
     });
     area.addEventListener("focus", function () { wrap.classList.add("rme-focused"); });
     area.addEventListener("blur", function () { wrap.classList.remove("rme-focused"); sync(); });
-    area.addEventListener("keyup", function () { updateActive(self); });
-    area.addEventListener("mouseup", function () { updateActive(self); });
+    area.addEventListener("keyup", function () { saveSel(); updateActive(self); });
+    area.addEventListener("mouseup", function () { saveSel(); updateActive(self); });
 
     // Clean pasted content.
     area.addEventListener("paste", function (e) {
@@ -211,10 +225,20 @@
     this.area.innerHTML = clean(html, false) || "";
     this.sync();
   };
-  Editor.prototype.exec = function (cmd, value) {
+  // Put the caret/selection back where the user last had it, then focus.
+  Editor.prototype.restoreSel = function () {
     this.area.focus();
+    if (this._range) {
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(this._range);
+    }
+  };
+  Editor.prototype.exec = function (cmd, value) {
+    this.restoreSel();
     try { document.execCommand(cmd, false, value == null ? null : value); }
     catch (e) { /* ignore unsupported */ }
+    this.saveSel();
     this.sync();
     updateActive(this);
   };
@@ -242,7 +266,7 @@
     b.addEventListener("mousedown", function (e) { e.preventDefault(); });
     b.addEventListener("click", function (e) {
       e.preventDefault();
-      if (def.fn) HANDLERS[def.fn](self);
+      if (def.fn) HANDLERS[def.fn](self, b);
       else self.exec(def.cmd);
     });
     self.buttons[key] = { node: b, def: def };
@@ -299,14 +323,19 @@
   // ---- table helpers ------------------------------------------------------
   var CELL_STYLE = "border:1px solid #ccc;padding:4px 8px";
 
-  // The <td>/<th> containing the caret, or null if the caret isn't in a table.
-  function currentCell(area) {
-    var sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return null;
-    var node = sel.getRangeAt(0).startContainer;
+  // The <td>/<th> the caret is in, based on the last saved selection (so it is
+  // still correct after a toolbar click moved focus out of the editor).
+  function currentCell(self) {
+    var r = self._range;
+    if (!r) {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount) r = sel.getRangeAt(0);
+    }
+    if (!r) return null;
+    var node = r.startContainer;
     if (node.nodeType === 3) node = node.parentNode;
     var cell = node && node.closest ? node.closest("td, th") : null;
-    return cell && area.contains(cell) ? cell : null;
+    return cell && self.area.contains(cell) ? cell : null;
   }
 
   function newCell(row, index) {
@@ -318,7 +347,7 @@
 
   // Add/remove a row or column relative to the caret's cell (native table DOM API).
   function tableOp(self, op) {
-    var cell = currentCell(self.area);
+    var cell = currentCell(self);
     if (!cell) { window.alert("Put the cursor inside a table cell first."); return; }
     var tr = cell.parentNode;
     var table = cell.closest("table");
@@ -354,8 +383,9 @@
         html += "</tr>";
       }
       html += "</tbody></table><p><br></p>";
-      self.area.focus();
+      self.restoreSel();
       document.execCommand("insertHTML", false, html);
+      self.saveSel();
       self.sync();
     },
     rowadd: function (self) { tableOp(self, "rowadd"); },
@@ -372,22 +402,66 @@
       if (!url) return;
       self.exec("insertImage", url);
     },
-    forecolor: function (self) {
-      var input = self._color;
-      if (!input) {
-        input = document.createElement("input");
-        input.type = "color";
-        input.style.position = "absolute";
-        input.style.left = "-9999px";
-        document.body.appendChild(input);
-        input.addEventListener("input", function () {
-          self.exec("foreColor", input.value);
-        });
-        self._color = input;
-      }
-      input.click();
-    },
+    forecolor: function (self, btn) { togglePalette(self, btn); },
   };
+
+  // ---- text color palette -------------------------------------------------
+  // A visible swatch popup (native <input type=color> drops the editor selection
+  // when its dialog opens, so the colour never applied — this avoids that).
+  var PALETTE = [
+    "#000000", "#444444", "#888888", "#cccccc", "#ffffff", "#e60000", "#ff9900",
+    "#ffdd00", "#00a650", "#0066cc", "#27338f", "#9933ff", "#a52a2a", "#ff66cc",
+  ];
+
+  function closePalette(self) {
+    if (self._palette) {
+      if (self._palette.parentNode) self._palette.parentNode.removeChild(self._palette);
+      document.removeEventListener("mousedown", self._paletteDoc, true);
+      self._palette = null;
+    }
+  }
+
+  function togglePalette(self, btn) {
+    if (self._palette) { closePalette(self); return; }
+
+    var pop = el("div", "rme-palette");
+    PALETTE.forEach(function (col) {
+      var sw = el("button", "rme-swatch");
+      sw.type = "button";
+      sw.title = col;
+      sw.style.background = col;
+      sw.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      sw.addEventListener("click", function (e) {
+        e.preventDefault();
+        self.exec("foreColor", col);   // exec restores the saved selection first
+        closePalette(self);
+      });
+      pop.appendChild(sw);
+    });
+
+    var custom = el("button", "rme-swatch rme-swatch-custom", "+");
+    custom.type = "button";
+    custom.title = "Custom colour";
+    custom.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    custom.addEventListener("click", function (e) {
+      e.preventDefault();
+      var c = window.prompt("Hex colour (e.g. #27338f):", "#27338f");
+      if (c) self.exec("foreColor", c);
+      closePalette(self);
+    });
+    pop.appendChild(custom);
+
+    self.wrap.appendChild(pop);
+    pop.style.top = (btn.offsetTop + btn.offsetHeight + 2) + "px";
+    pop.style.left = Math.max(4, btn.offsetLeft) + "px";
+    self._palette = pop;
+
+    // Close when clicking anywhere outside the palette or its button.
+    self._paletteDoc = function (ev) {
+      if (!pop.contains(ev.target) && ev.target !== btn) closePalette(self);
+    };
+    document.addEventListener("mousedown", self._paletteDoc, true);
+  }
 
   // ---- autochange (auto-enhance textareas without a class) ----------------
   var autoSelector = null; // when set, every matching <textarea> becomes an editor
