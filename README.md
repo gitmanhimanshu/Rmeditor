@@ -39,7 +39,7 @@ Make sure `django.contrib.staticfiles` is set up (it is by default) and run
 <form method="post">
   {% csrf_token %}
   <textarea name="body" class="rmeditor"
-            data-tools="format | bold italic underline | bullist numlist | link image | removeformat">
+            data-tools="format fontsize | bold italic underline | bullist numlist | link image | removeformat">
     {{ object.body }}
   </textarea>
   <button type="submit">Save</button>
@@ -104,7 +104,8 @@ class ArticleForm(forms.ModelForm):
 
 ## Toolbar tokens
 
-`format` (paragraph/H1/H2/H3 dropdown), `bold`, `italic`, `underline`, `strike`,
+`format` (paragraph/H1/H2/H3 dropdown), `fontsize` (Small/Normal/Large/Larger/Huge/Massive
+dropdown), `bold`, `italic`, `underline`, `strike`,
 `forecolor`, `bullist`, `numlist`, `indent`, `outdent`, `alignleft`, `aligncenter`,
 `alignright`, `justify`, `link`, `unlink`, `image`, `table`, `rowadd`, `rowdel`,
 `coladd`, `coldel`, `removeformat`, `undo`, `redo`.

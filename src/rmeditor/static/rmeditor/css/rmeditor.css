@@ -129,6 +129,11 @@
   cursor: pointer;
 }
 
+/* Font-size dropdown */
+.rme-select-fontsize {
+  min-width: 110px;
+}
+
 /* Editable area */
 .rme-area {
   min-height: 180px;
@@ -173,3 +178,4 @@ textarea.rmeditor.rme-hidden {
 }
 .rmeditor-wrap[data-theme="dark"] .rme-btn:hover { background: #333747; }
 .rmeditor-wrap[data-theme="dark"] .rme-select { background: #262932; }
+.rmeditor-wrap[data-theme="dark"] .rme-palette { background: #262932; }
