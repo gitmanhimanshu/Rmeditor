@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- New: table support. `table` inserts a table (rows,columns prompt); `rowadd`,
+  `rowdel`, `coladd`, `coldel` add/remove rows and columns at the caret's cell.
+  Added to the default toolbar. Inserted cells carry inline borders so they
+  render the same on the front end.
+- Metadata: set author to Himanshu.
+
 ## 0.1.1
 
 - Fix: paragraph/heading dropdown now uses the angle-bracket `formatBlock`

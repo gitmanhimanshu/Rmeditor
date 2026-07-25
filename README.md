@@ -106,7 +106,12 @@ class ArticleForm(forms.ModelForm):
 
 `format` (paragraph/H1/H2/H3 dropdown), `bold`, `italic`, `underline`, `strike`,
 `forecolor`, `bullist`, `numlist`, `indent`, `outdent`, `alignleft`, `aligncenter`,
-`alignright`, `justify`, `link`, `unlink`, `image`, `removeformat`, `undo`, `redo`.
+`alignright`, `justify`, `link`, `unlink`, `image`, `table`, `rowadd`, `rowdel`,
+`coladd`, `coldel`, `removeformat`, `undo`, `redo`.
+
+Table tokens: `table` inserts a table (prompts for rows,columns); `rowadd`/`rowdel`
+add/delete a row and `coladd`/`coldel` add/delete a column relative to the cell the
+caret is in.
 Use `|` for a separator. Set per field with `data-tools="..."` or on the widget with
 `RichTextWidget(tools="...")`.
 
@@ -135,8 +140,9 @@ consumers are unaffected.
 ## Notes / limits (v0.1)
 
 - Uses `document.execCommand` (deprecated but supported in all current browsers).
-- Advanced table/media editing is out of scope; existing tables/images in content are
-  preserved and still render.
+- Tables support insert plus add/remove row and column. Cell merging/splitting and
+  media (video/embed) editing are out of scope; existing such content is preserved
+  and still renders.
 - Client-side sanitize is a basic guard. For untrusted authors, also sanitize on the
   server (e.g. `bleach`) before rendering with `|safe`.
 

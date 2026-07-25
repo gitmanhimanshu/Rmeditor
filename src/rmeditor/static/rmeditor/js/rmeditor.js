@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.1";
+  var VERSION = "0.1.2";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -43,6 +43,7 @@
     unlink: svg('<path d="M9 15l6-6"/><path d="M12 5l1-1a4 4 0 0 1 6 6l-1 1M5 5l14 14"/>'),
     image: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/>'),
     removeformat: svg('<path d="M7 6h11M11 6l-3 12M5 20h6"/><path d="M17 14l4 4M21 14l-4 4"/>'),
+    table: svg('<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9.5h18M3 15h18M9 4v16M15 4v16"/>'),
   };
 
   // ---- toolbar buttons ----------------------------------------------------
@@ -67,12 +68,18 @@
     unlink:      { title: "Remove link",     icon: ICON.unlink,      cmd: "unlink" },
     image:       { title: "Insert image",    icon: ICON.image,       fn: "image" },
     removeformat:{ title: "Clear formatting",icon: ICON.removeformat,cmd: "removeFormat" },
+    table:       { title: "Insert table",    icon: ICON.table, fn: "table" },
+    rowadd:      { title: "Add row below",    text: "+R", fn: "rowadd" },
+    rowdel:      { title: "Delete row",       text: "−R", fn: "rowdel" },
+    coladd:      { title: "Add column right", text: "+C", fn: "coladd" },
+    coldel:      { title: "Delete column",    text: "−C", fn: "coldel" },
   };
 
   // "format" is a special dropdown token (block format select).
   var DEFAULT_TOOLS =
     "format | bold italic underline strike forecolor | bullist numlist indent outdent | " +
-    "alignleft aligncenter alignright | link image removeformat | undo redo";
+    "alignleft aligncenter alignright | link image | table rowadd rowdel coladd coldel | " +
+    "removeformat | undo redo";
 
   var instances = []; // all live editors
 
@@ -289,8 +296,72 @@
     }
   }
 
+  // ---- table helpers ------------------------------------------------------
+  var CELL_STYLE = "border:1px solid #ccc;padding:4px 8px";
+
+  // The <td>/<th> containing the caret, or null if the caret isn't in a table.
+  function currentCell(area) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    var node = sel.getRangeAt(0).startContainer;
+    if (node.nodeType === 3) node = node.parentNode;
+    var cell = node && node.closest ? node.closest("td, th") : null;
+    return cell && area.contains(cell) ? cell : null;
+  }
+
+  function newCell(row, index) {
+    var c = row.insertCell(index);
+    c.setAttribute("style", CELL_STYLE);
+    c.innerHTML = "&nbsp;";
+    return c;
+  }
+
+  // Add/remove a row or column relative to the caret's cell (native table DOM API).
+  function tableOp(self, op) {
+    var cell = currentCell(self.area);
+    if (!cell) { window.alert("Put the cursor inside a table cell first."); return; }
+    var tr = cell.parentNode;
+    var table = cell.closest("table");
+    var ci = cell.cellIndex, ri = tr.rowIndex, r;
+    if (op === "rowadd") {
+      var nr = table.insertRow(ri + 1);
+      for (var i = 0; i < tr.cells.length; i++) newCell(nr, i);
+    } else if (op === "rowdel") {
+      if (table.rows.length > 1) table.deleteRow(ri);
+    } else if (op === "coladd") {
+      for (r = 0; r < table.rows.length; r++) newCell(table.rows[r], ci + 1);
+    } else if (op === "coldel") {
+      if (table.rows[0].cells.length > 1) {
+        for (r = 0; r < table.rows.length; r++)
+          if (table.rows[r].cells[ci]) table.rows[r].deleteCell(ci);
+      }
+    }
+    self.sync();
+  }
+
   // ---- custom handlers ----------------------------------------------------
   var HANDLERS = {
+    table: function (self) {
+      var dims = window.prompt("Table size (rows,columns):", "2,2");
+      if (!dims) return;
+      var p = dims.split(",");
+      var rows = Math.max(1, parseInt(p[0], 10) || 2);
+      var cols = Math.max(1, parseInt(p[1], 10) || 2);
+      var html = '<table style="border-collapse:collapse"><tbody>';
+      for (var r = 0; r < rows; r++) {
+        html += "<tr>";
+        for (var c = 0; c < cols; c++) html += '<td style="' + CELL_STYLE + '">&nbsp;</td>';
+        html += "</tr>";
+      }
+      html += "</tbody></table><p><br></p>";
+      self.area.focus();
+      document.execCommand("insertHTML", false, html);
+      self.sync();
+    },
+    rowadd: function (self) { tableOp(self, "rowadd"); },
+    rowdel: function (self) { tableOp(self, "rowdel"); },
+    coladd: function (self) { tableOp(self, "coladd"); },
+    coldel: function (self) { tableOp(self, "coldel"); },
     link: function (self) {
       var url = window.prompt("Link URL:", "https://");
       if (!url) return;
