@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8
+
+- Fix: the hidden source textarea (and source-mode show rule) was scoped to
+  `textarea.rmeditor`, so autochange-enhanced textareas (which lack that class)
+  were never hidden — the raw HTML showed under every editor. Now scoped to
+  `.rmeditor-wrap textarea.rme-hidden`, so the HTML only shows in source mode.
+
 ## 0.1.7
 
 - Fix: `rmeditor.__version__` was stale (0.1.3); now matches the package version.

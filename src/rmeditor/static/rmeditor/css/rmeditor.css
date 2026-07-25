@@ -163,8 +163,10 @@
 .rme-area table td,
 .rme-area table th { border: 1px solid var(--rme-border); padding: 4px 8px; }
 
-/* The original textarea stays in the DOM (hidden) so the form still submits it. */
-textarea.rmeditor.rme-hidden {
+/* The original textarea stays in the DOM (hidden) so the form still submits it.
+   Scoped to the wrap + rme-hidden so it works whether or not the source textarea
+   carried the `rmeditor` class (autochange-enhanced textareas do not). */
+.rmeditor-wrap textarea.rme-hidden {
   display: none !important;
 }
 
@@ -184,7 +186,7 @@ textarea.rmeditor.rme-hidden {
 .rmeditor-wrap.rme-source-mode .rme-area {
   display: none;
 }
-.rmeditor-wrap.rme-source-mode textarea.rmeditor {
+.rmeditor-wrap.rme-source-mode textarea.rme-hidden {
   display: block !important;
   width: 100%;
   box-sizing: border-box;
