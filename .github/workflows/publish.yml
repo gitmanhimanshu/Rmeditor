@@ -1,11 +1,14 @@
 name: Publish to PyPI
 
-# Publishes to PyPI whenever you publish a GitHub Release.
+# Publishes to PyPI on a GitHub Release, or when a version tag (v*) is pushed.
 # PyPI rejects re-uploading an existing version, so bump the version in
-# pyproject.toml (and CHANGELOG.md) before creating each release.
+# pyproject.toml (and CHANGELOG.md) before each release/tag.
 on:
   release:
     types: [published]
+  push:
+    tags:
+      - "v*"
 
 jobs:
   publish:
