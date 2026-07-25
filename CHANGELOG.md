@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Fix: `rmeditor.__version__` was stale (0.1.3); now matches the package version.
+
 ## 0.1.6
 
 - New: `source` toolbar token to toggle HTML source view. When active, it displays
