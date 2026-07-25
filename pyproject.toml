@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-rmeditor"
-version = "0.1.0"
+version = "0.1.1"
 description = "A lightweight, self-hosted, HTML-output rich text editor widget for Django. No CDN, no API key, no branding, no usage limits."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -36,9 +36,9 @@ classifiers = [
 dependencies = ["Django>=3.2"]
 
 [project.urls]
-Homepage = "https://github.com/CHANGE-ME/django-rmeditor"
-Repository = "https://github.com/CHANGE-ME/django-rmeditor"
-Issues = "https://github.com/CHANGE-ME/django-rmeditor/issues"
+Homepage = "https://github.com/gitmanhimanshu/Rmeditor"
+Repository = "https://github.com/gitmanhimanshu/Rmeditor"
+Issues = "https://github.com/gitmanhimanshu/Rmeditor/issues"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

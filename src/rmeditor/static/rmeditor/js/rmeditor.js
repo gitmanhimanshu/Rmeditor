@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.0";
+  var VERSION = "0.1.1";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -145,7 +145,10 @@
     if (textarea.getAttribute("data-height")) area.style.minHeight = textarea.getAttribute("data-height");
 
     // Pre-fill from the existing textarea value (existing content shows up).
-    area.innerHTML = clean(textarea.value, false) || "";
+    // Whitespace-only values become empty so the placeholder shows and no junk
+    // gets synced back.
+    var initial = clean(textarea.value, false);
+    area.innerHTML = initial && initial.trim() ? initial : "";
 
     textarea.parentNode.insertBefore(wrap, textarea);
     wrap.appendChild(toolbar);
@@ -254,7 +257,8 @@
     }
     sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
     sel.addEventListener("change", function () {
-      self.exec("formatBlock", sel.value.toUpperCase());
+      // Angle-bracket form ("<h1>") is what execCommand expects across browsers.
+      self.exec("formatBlock", "<" + sel.value + ">");
     });
     self._formatSelect = sel;
     return sel;

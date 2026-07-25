@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.1
+
+- Fix: paragraph/heading dropdown now uses the angle-bracket `formatBlock`
+  value (`<h1>`), so headings apply reliably across browsers.
+- Fix: whitespace-only initial content is treated as empty (placeholder shows,
+  no stray whitespace saved).
+- Fix: correct project URLs (repository / issues) in package metadata.
+
+## 0.1.0
 
 - First version.
 - Self-hosted `contenteditable` rich text editor. HTML in / HTML out.
