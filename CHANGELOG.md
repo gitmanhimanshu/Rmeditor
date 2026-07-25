@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5
+
+- Improved: `fontsize` dropdown now shows real px numbers (8, 10, 12, 14, 16,
+  18, 20, 24, 28, 32, 36, 48, 72) like TinyMCE / CKEditor instead of labels.
+  Applies sizes via clean `<span style="font-size:Xpx">` output. The dropdown
+  auto-detects the current selection's font size.
+
 ## 0.1.4
 
 - New: `fontsize` toolbar dropdown (Small / Normal / Large / Larger / Huge /

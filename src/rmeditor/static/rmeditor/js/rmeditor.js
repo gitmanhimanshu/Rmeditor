@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.4";
+  var VERSION = "0.1.5";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -296,21 +296,46 @@
     return sel;
   }
 
-  // Font-size dropdown (maps to execCommand fontSize 1–7, which most browsers
-  // render as <font size="N">). We also offer the most useful px labels.
-  var FONT_SIZES = [
-    ["2", "Small (13px)"],
-    ["3", "Normal (16px)"],
-    ["4", "Large (18px)"],
-    ["5", "Larger (24px)"],
-    ["6", "Huge (32px)"],
-    ["7", "Massive (48px)"],
-  ];
+  // Font-size dropdown — shows real px numbers (like TinyMCE / CKEditor).
+  // Since execCommand("fontSize") only supports 1–7, we use a workaround:
+  // apply fontSize 7 first (creates a <font> tag), then swap it to a
+  // <span style="font-size:Xpx"> for clean, predictable output.
+  var FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
+
+  function applyFontSize(self, px) {
+    self.restoreSel();
+    // Use fontSize 7 as a marker — browsers wrap the selection in <font size="7">
+    document.execCommand("fontSize", false, "7");
+    // Now find all <font size="7"> inside the editor and convert to styled spans
+    var fonts = self.area.querySelectorAll('font[size="7"]');
+    for (var i = 0; i < fonts.length; i++) {
+      var span = document.createElement("span");
+      span.style.fontSize = px + "px";
+      span.innerHTML = fonts[i].innerHTML;
+      fonts[i].parentNode.replaceChild(span, fonts[i]);
+    }
+    self.saveSel();
+    self.sync();
+    updateActive(self);
+  }
+
+  // Detect the font-size (in px) at the current caret position.
+  function currentFontSize(self) {
+    var node = null;
+    var s = window.getSelection();
+    if (s && s.rangeCount) {
+      node = s.getRangeAt(0).startContainer;
+      if (node.nodeType === 3) node = node.parentNode;
+    }
+    if (!node || !self.area.contains(node)) return "";
+    var computed = window.getComputedStyle(node).fontSize;  // e.g. "16px"
+    return Math.round(parseFloat(computed)) || "";
+  }
 
   function makeFontSizeSelect(self) {
     var sel = el("select", "rme-select rme-select-fontsize");
     sel.title = "Font size";
-    // Default / placeholder option
+    // Placeholder option
     var placeholder = el("option");
     placeholder.value = "";
     placeholder.textContent = "Size";
@@ -318,14 +343,14 @@
     sel.appendChild(placeholder);
     for (var i = 0; i < FONT_SIZES.length; i++) {
       var o = el("option");
-      o.value = FONT_SIZES[i][0];
-      o.textContent = FONT_SIZES[i][1];
-      if (FONT_SIZES[i][0] === "3") o.selected = true;   // default = Normal
+      o.value = String(FONT_SIZES[i]);
+      o.textContent = String(FONT_SIZES[i]);
+      if (FONT_SIZES[i] === 16) o.selected = true;   // default = 16px
       sel.appendChild(o);
     }
     sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
     sel.addEventListener("change", function () {
-      if (sel.value) self.exec("fontSize", sel.value);
+      if (sel.value) applyFontSize(self, parseInt(sel.value, 10));
     });
     self._fontSizeSelect = sel;
     return sel;
@@ -354,14 +379,13 @@
       if (!/^h[1-3]$/.test(block)) block = "p";
       self._formatSelect.value = block;
     }
-    // Sync font-size dropdown to current selection
+    // Sync font-size dropdown to current caret's computed size
     if (self._fontSizeSelect) {
-      var fs = "";
-      try { fs = document.queryCommandValue("fontSize"); } catch (e) {}
-      if (fs && fs !== "false") {
-        self._fontSizeSelect.value = String(fs);
+      var px = currentFontSize(self);
+      if (px && FONT_SIZES.indexOf(px) !== -1) {
+        self._fontSizeSelect.value = String(px);
       } else {
-        self._fontSizeSelect.value = "3";   // default Normal
+        self._fontSizeSelect.value = "16";
       }
     }
   }
