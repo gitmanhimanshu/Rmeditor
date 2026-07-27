@@ -1,5 +1,13 @@
 # django-rmeditor
 
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/django-rmeditor?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/django-rmeditor)
+[![PyPI version](https://img.shields.io/pypi/v/django-rmeditor.svg)](https://pypi.org/project/django-rmeditor/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/django-rmeditor.svg)](https://pypi.org/project/django-rmeditor/)
+[![License](https://img.shields.io/github/license/gitmanhimanshu/Rmeditor)](https://github.com/gitmanhimanshu/Rmeditor/blob/main/LICENSE)
+
+A customizable, self-hosted rich text editor for Django — a drop-in **TinyMCE alternative**
+with extra features and full customization, and no CDN, API key, or usage limits.
+
 A lightweight, **self-hosted** rich text editor for Django. It outputs plain **HTML**,
 so it is a drop-in replacement for a `TextField` / tinymce `HTMLField` with **no data
 migration**. No CDN, no API key, no branding, no word/usage limits.
