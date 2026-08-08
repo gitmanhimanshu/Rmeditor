@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.10 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.11 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.10";
+  var VERSION = "0.1.11";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -222,6 +222,55 @@
     }
   }
 
+  var BLOCK_TAGS = /^(P|DIV|H[1-6]|UL|OL|LI|TABLE|BLOCKQUOTE|PRE|HR|SECTION|ARTICLE)$/;
+
+  /* Put cleaned HTML into the editor at the caret.
+   *
+   * execCommand("insertHTML") takes the block the caret is in and imposes that
+   * block's tag on what it inserts. On an empty editor the caret sits on the root,
+   * there is no tag to impose, and the paste comes out right — which is why the
+   * first paste always looked fine. After that the caret is left inside the last
+   * block of the previous paste, so a second paste inherited whatever that was:
+   * paste after a heading and the whole document came back as headings; paste after
+   * a div and it came back as divs.
+   *
+   * Opening a fresh, empty paragraph first removes the tag there is to inherit.
+   * Only needed when the pasted content carries blocks of its own — an inline
+   * paste (a few words, a link) should land in the sentence being typed, so that
+   * path is left exactly as it was.
+   */
+  function insertPaste(area, html) {
+    var probe = document.createElement("div");
+    probe.innerHTML = html;
+    var hasBlocks = false;
+    for (var i = 0; i < probe.children.length; i++) {
+      if (BLOCK_TAGS.test(probe.children[i].tagName)) { hasBlocks = true; break; }
+    }
+
+    if (hasBlocks) {
+      document.execCommand("insertParagraph");
+      document.execCommand("formatBlock", false, "p");
+    }
+
+    // Even in a plain paragraph the first inserted block gets merged into it and
+    // loses its tag. An empty inline span absorbs that merge instead.
+    var anchorId = "rme-paste-" + Date.now() + "-" + Math.round(Math.random() * 1e6);
+    document.execCommand("insertHTML", false,
+      '<span id="' + anchorId + '"></span>' + html);
+
+    var anchor = document.getElementById(anchorId);
+    if (anchor && anchor.parentNode) {
+      // The paragraph opened above is left behind empty when the merge consumed
+      // the span rather than the paragraph itself.
+      var holder = anchor.parentNode;
+      anchor.parentNode.removeChild(anchor);
+      if (hasBlocks && holder !== area && holder.parentNode &&
+          !holder.textContent.trim() && !holder.querySelector("img, table, br")) {
+        holder.parentNode.removeChild(holder);
+      }
+    }
+  }
+
   // ---- editor instance ----------------------------------------------------
   function Editor(textarea) {
     if (textarea._rmeditor) return textarea._rmeditor;
@@ -298,8 +347,11 @@
       var cb = e.clipboardData || window.clipboardData;
       var html = cb && cb.getData ? cb.getData("text/html") : "";
       var text = cb && cb.getData ? cb.getData("text/plain") : "";
-      if (html) document.execCommand("insertHTML", false, clean(html, true));
-      else if (text) document.execCommand("insertText", false, text);
+      if (html) {
+        insertPaste(area, clean(html, true));
+      } else if (text) {
+        document.execCommand("insertText", false, text);
+      }
       sync();
     });
 
@@ -709,6 +761,9 @@
       return RMEditor;
     },
     get: resolve,
+    // Run the paste cleaner over a string without pasting anything. Useful for
+    // checking what a given source's markup turns into, and for tests.
+    cleanPaste: function (html) { return clean(html, true); },
     getHTML: function (t) { var e = resolve(t); return e ? e.getHTML() : ""; },
     setHTML: function (t, html) { var e = resolve(t); if (e) e.setHTML(html); },
     getText: function (t) { var e = resolve(t); return e ? e.getText() : ""; },

@@ -162,6 +162,7 @@ RMEditor.get(el)            // instance for a textarea node or its id ("" if non
 RMEditor.getHTML(el)        // current HTML
 RMEditor.setHTML(el, html)  // replace content
 RMEditor.getText(el)        // plain text, trimmed
+RMEditor.cleanPaste(html)   // run the paste cleaner over a string (no paste)
 RMEditor.syncAll()          // flush every editor into its textarea
 ```
 

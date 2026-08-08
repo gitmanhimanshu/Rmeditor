@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.11
+
+- Fix: pasting a document lost its first heading, and pasting a second time without
+  reloading corrupted everything.
+
+  Both come from `document.execCommand("insertHTML")`, which imposes the tag of the
+  block holding the caret onto the content it inserts. On an empty editor the caret
+  sits on the root, there is no tag to impose, and the paste comes out right — which
+  is why a first paste always looked fine apart from its leading block, whose tag was
+  absorbed by the merge.
+
+  After that the caret is left inside the last block of the previous paste, and the
+  next paste inherits it: paste after a heading and the whole document comes back as
+  headings, paste after a div and it comes back as divs.
+
+  Paste now opens a fresh empty paragraph first, so there is no tag to inherit, and
+  leads the inserted HTML with an empty inline `<span>` that absorbs the merge in
+  place of the real first block. Both are cleaned up straight after. This applies
+  only when the pasted content carries blocks of its own; an inline paste — a few
+  words, a link — still lands in the sentence being typed.
+
+- New: `RMEditor.cleanPaste(html)` runs the paste cleaner over a string without
+  pasting anything, for checking what a given source's markup turns into.
+
 ## 0.1.10
 
 - Change: pasted headings are now kept at the level they were copied at.
