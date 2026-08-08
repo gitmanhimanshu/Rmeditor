@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.0 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.9 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.8";
+  var VERSION = "0.1.9";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -130,7 +130,93 @@
         parent.removeChild(node);
       }
     }
+
+    if (paste) normalizeStructure(tmp);
     return tmp.innerHTML;
+  }
+
+  // How pasted headings are treated: "demote" (default) drops each one two levels
+  // so a source h1 lands at h3, "flatten" turns them into bold paragraphs, "keep"
+  // leaves them alone. Set with data-paste-headings on the script tag or textarea,
+  // or window.RMEDITOR_PASTE_HEADINGS.
+  var HEADING_MODE = "demote";
+  var HEADING_DEMOTE_BY = 2;
+
+  /* Tidy the shape of pasted content.
+   *
+   * Stripping style and class is not enough on its own. Copying from ChatGPT (or
+   * Docs, or a web page) brings a wrapper div around everything, more divs used
+   * where paragraphs belong, and headings sized for a full page. The wrapper and
+   * the loose divs carry no styling once the classes are gone — and the stylesheet
+   * has no rule for a bare div — so the lines collapse against each other and the
+   * spacing looks broken. The headings meanwhile render at the source document's
+   * scale, which is far larger than body text inside a form field.
+   */
+  function normalizeStructure(root) {
+    // A single wrapping element around the whole paste carries no meaning.
+    while (root.children.length === 1 &&
+           (root.firstElementChild.tagName === "DIV" ||
+            root.firstElementChild.tagName === "SECTION" ||
+            root.firstElementChild.tagName === "ARTICLE") &&
+           root.firstElementChild.children.length) {
+      var only = root.firstElementChild;
+      while (only.firstChild) root.insertBefore(only.firstChild, only);
+      root.removeChild(only);
+    }
+
+    // Divs standing in for paragraphs become paragraphs, so they pick up the
+    // stylesheet's paragraph spacing. Divs that only hold block content are
+    // unwrapped instead — wrapping a list in a <p> would be invalid.
+    var divs = root.querySelectorAll("div, section, article");
+    for (var i = divs.length - 1; i >= 0; i--) {
+      var d = divs[i];
+      var holdsBlocks = d.querySelector("p, div, ul, ol, table, h1, h2, h3, h4, h5, h6, blockquote, pre");
+      if (holdsBlocks) {
+        while (d.firstChild) d.parentNode.insertBefore(d.firstChild, d);
+        d.parentNode.removeChild(d);
+      } else {
+        var p = document.createElement("p");
+        while (d.firstChild) p.appendChild(d.firstChild);
+        d.parentNode.replaceChild(p, d);
+      }
+    }
+
+    if (HEADING_MODE !== "keep") {
+      var heads = root.querySelectorAll("h1, h2, h3, h4, h5, h6");
+      for (var h = 0; h < heads.length; h++) {
+        var src = heads[h];
+        var level = parseInt(src.tagName.charAt(1), 10);
+        var repl;
+        if (HEADING_MODE === "flatten") {
+          repl = document.createElement("p");
+          var strong = document.createElement("strong");
+          while (src.firstChild) strong.appendChild(src.firstChild);
+          repl.appendChild(strong);
+        } else {
+          repl = document.createElement("h" + Math.min(6, level + HEADING_DEMOTE_BY));
+          while (src.firstChild) repl.appendChild(src.firstChild);
+        }
+        src.parentNode.replaceChild(repl, src);
+      }
+    }
+
+    // <b>/<i> come from older sources; <strong>/<em> are what the toolbar emits,
+    // so normalising here keeps the active-state highlighting in step.
+    var legacy = root.querySelectorAll("b, i");
+    for (var k = 0; k < legacy.length; k++) {
+      var old = legacy[k];
+      var neu = document.createElement(old.tagName === "B" ? "strong" : "em");
+      while (old.firstChild) neu.appendChild(old.firstChild);
+      old.parentNode.replaceChild(neu, old);
+    }
+
+    // Empty blocks left behind by the unwrapping above would render as stray gaps.
+    var maybeEmpty = root.querySelectorAll("p, div, h1, h2, h3, h4, h5, h6, li");
+    for (var m = maybeEmpty.length - 1; m >= 0; m--) {
+      var n = maybeEmpty[m];
+      if (!n.querySelector("img, br, table") && !(n.textContent || "").trim())
+        n.parentNode.removeChild(n);
+    }
   }
 
   // ---- editor instance ----------------------------------------------------
@@ -582,6 +668,23 @@
     return s && s.getAttribute("data-auto") ? s.getAttribute("data-auto") : null;
   }
 
+  // Read the paste heading policy the same way: window.RMEDITOR_PASTE_HEADINGS or
+  // <script ... data-paste-headings="keep|demote|flatten">.
+  function readHeadingConfig() {
+    var mode = window.RMEDITOR_PASTE_HEADINGS;
+    if (!mode) {
+      var s = SCRIPT;
+      if (!s) {
+        var all = document.getElementsByTagName("script");
+        for (var i = all.length - 1; i >= 0; i--) {
+          if (all[i].src && all[i].src.indexOf("rmeditor.js") !== -1) { s = all[i]; break; }
+        }
+      }
+      mode = s && s.getAttribute("data-paste-headings");
+    }
+    if (mode === "keep" || mode === "flatten" || mode === "demote") HEADING_MODE = mode;
+  }
+
   // ---- public API ---------------------------------------------------------
   var RMEditor = {
     version: VERSION,
@@ -611,10 +714,11 @@
 
   window.RMEditor = RMEditor;
 
-  // Boot: pick up autochange config, then enhance.
+  // Boot: pick up autochange + paste config, then enhance.
   function boot() {
     var cfg = readAutoConfig();
     if (cfg) autoSelector = cfg;
+    readHeadingConfig();
     RMEditor.enhanceAll();
   }
   if (document.readyState === "loading") {

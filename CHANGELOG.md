@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.9
+
+- Fix: pasted content from ChatGPT, Google Docs and similar arrived with its
+  structure intact but nothing holding it together. `clean()` removed every style
+  and class, which is right, but left behind the wrapper `<div>` around the whole
+  paste, the `<div>`s used in place of paragraphs, and headings sized for a full
+  page. Bare divs have no rule in the stylesheet, so those lines collapsed against
+  each other, and a pasted `h1` rendered at 1.6em against 14px body text.
+
+  Paste now also normalises structure: the outer wrapper is unwrapped, divs become
+  paragraphs (or are unwrapped when they only contain block content), headings are
+  demoted two levels by default so a source `h1` lands at `h3`, `<b>`/`<i>` become
+  `<strong>`/`<em>`, and empty blocks left by the unwrapping are dropped.
+
+- New: `data-paste-headings` on the script tag, or `window.RMEDITOR_PASTE_HEADINGS`,
+  choosing `demote` (default), `flatten` (headings become bold paragraphs) or
+  `keep` (previous behaviour).
+
+- Fix: `h4`–`h6`, `div`, `blockquote`, `pre` and `code` had no styles at all, so
+  they fell back to browser defaults — `h4` matched body text and `h5`/`h6` came
+  out smaller than it. Now styled in keeping with `h1`–`h3`.
+
+- Fix: the banner comment at the top of `rmeditor.js` still read 0.1.0.
+
 ## 0.1.8
 
 - Fix: the hidden source textarea (and source-mode show rule) was scoped to

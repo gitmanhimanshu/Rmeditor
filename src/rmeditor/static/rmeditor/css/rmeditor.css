@@ -155,6 +155,32 @@
 .rme-area h1 { font-size: 1.6em; margin: 0 0 12px; }
 .rme-area h2 { font-size: 1.35em; margin: 0 0 10px; }
 .rme-area h3 { font-size: 1.15em; margin: 0 0 8px; }
+/* h4-h6 had no rule at all, so they fell back to the browser defaults — which put
+   h4 at the same size as body text and h5/h6 smaller than it. Pasted documents
+   routinely go this deep, and demoted headings land here too. */
+.rme-area h4 { font-size: 1.05em; margin: 0 0 8px; font-weight: 600; }
+.rme-area h5 { font-size: 1em;    margin: 0 0 6px; font-weight: 600; }
+.rme-area h6 { font-size: 0.95em; margin: 0 0 6px; font-weight: 600; }
+/* A bare div gets no spacing from anywhere, so pasted content that still contains
+   one collapses against the line above it. Paste normalisation converts most of
+   them to paragraphs; this covers whatever survives, and anything typed directly. */
+.rme-area div { margin: 0 0 10px; }
+.rme-area blockquote {
+  margin: 0 0 10px;
+  padding-left: 12px;
+  border-left: 3px solid var(--rme-border);
+  color: var(--rme-muted);
+}
+.rme-area pre {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: var(--rme-bar);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+.rme-area code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 .rme-area ul,
 .rme-area ol { margin: 0 0 10px; padding-left: 24px; }
 .rme-area img { max-width: 100%; height: auto; }

@@ -123,6 +123,38 @@ caret is in.
 Use `|` for a separator. Set per field with `data-tools="..."` or on the widget with
 `RichTextWidget(tools="...")`.
 
+## Pasting from ChatGPT, Google Docs and Word
+
+Paste is cleaned automatically. Styles, classes, ids and Office junk are stripped,
+and the structure is tidied so the result matches text typed directly into the
+editor rather than carrying the source document's layout:
+
+- the wrapper element around the whole paste is unwrapped
+- `<div>`s used as paragraphs become `<p>`; `<div>`s that only wrap block content
+  are unwrapped
+- `<b>`/`<i>` become `<strong>`/`<em>`
+- empty blocks left over from unwrapping are dropped
+- headings are **demoted two levels**, so a source `<h1>` lands at `<h3>`
+
+That last one is the reason a pasted ChatGPT answer no longer arrives at heading
+size. Pasted material sits inside a page that already has its own `h1`, so the
+source's top-level heading should not compete with it.
+
+Change it if the default doesn't suit:
+
+```html
+<!-- headings become bold paragraphs -->
+<script src="{% static 'rmeditor/js/rmeditor.js' %}" data-paste-headings="flatten" defer></script>
+
+<!-- leave headings exactly as pasted (behaviour before 0.1.9) -->
+<script src="{% static 'rmeditor/js/rmeditor.js' %}" data-paste-headings="keep" defer></script>
+```
+
+Or set `window.RMEDITOR_PASTE_HEADINGS = "flatten"` before the script loads.
+
+Only paste is affected — content already stored, and anything typed or formatted
+with the toolbar, is left exactly as-is.
+
 ## JavaScript API
 
 ```js
