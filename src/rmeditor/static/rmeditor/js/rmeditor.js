@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.11 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.12 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.11";
+  var VERSION = "0.1.12";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -224,6 +224,33 @@
 
   var BLOCK_TAGS = /^(P|DIV|H[1-6]|UL|OL|LI|TABLE|BLOCKQUOTE|PRE|HR|SECTION|ARTICLE)$/;
 
+  // The editor's own top-level child that the caret is inside, or null when the
+  // caret sits directly on the editor (an empty editor does exactly that).
+  function caretBlock(area) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    var node = sel.getRangeAt(0).startContainer;
+    if (node === area) return null;
+    while (node && node.parentNode && node.parentNode !== area) node = node.parentNode;
+    return node && node.parentNode === area ? node : null;
+  }
+
+  // Blocks with nothing in them render as blank lines. execCommand leaves these
+  // behind around an insertion, so they are swept up once the paste has landed.
+  function dropEmptyBlocks(area) {
+    var blocks = area.querySelectorAll("p, div, h1, h2, h3, h4, h5, h6");
+    for (var i = blocks.length - 1; i >= 0; i--) {
+      var b = blocks[i];
+      if (!b.parentNode) continue;
+      if ((b.textContent || "").trim()) continue;
+      if (b.querySelector("img, table, iframe")) continue;
+      // A lone <br> is how a browser marks an empty block, not content.
+      var kids = b.children;
+      if (kids.length && !(kids.length === 1 && kids[0].tagName === "BR")) continue;
+      b.parentNode.removeChild(b);
+    }
+  }
+
   /* Put cleaned HTML into the editor at the caret.
    *
    * execCommand("insertHTML") takes the block the caret is in and imposes that
@@ -248,7 +275,13 @@
     }
 
     if (hasBlocks) {
-      document.execCommand("insertParagraph");
+      // Opening a paragraph unconditionally left an empty line above the paste
+      // whenever the caret was already in an empty block — which is every paste
+      // into an empty editor. Only break out of a block that has something in it.
+      var host = caretBlock(area);
+      var hostIsEmpty = !host ||
+        (!(host.textContent || "").trim() && !host.querySelector("img, table"));
+      if (!hostIsEmpty) document.execCommand("insertParagraph");
       document.execCommand("formatBlock", false, "p");
     }
 
@@ -259,16 +292,8 @@
       '<span id="' + anchorId + '"></span>' + html);
 
     var anchor = document.getElementById(anchorId);
-    if (anchor && anchor.parentNode) {
-      // The paragraph opened above is left behind empty when the merge consumed
-      // the span rather than the paragraph itself.
-      var holder = anchor.parentNode;
-      anchor.parentNode.removeChild(anchor);
-      if (hasBlocks && holder !== area && holder.parentNode &&
-          !holder.textContent.trim() && !holder.querySelector("img, table, br")) {
-        holder.parentNode.removeChild(holder);
-      }
-    }
+    if (anchor && anchor.parentNode) anchor.parentNode.removeChild(anchor);
+    if (hasBlocks) dropEmptyBlocks(area);
   }
 
   // ---- editor instance ----------------------------------------------------

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.12
+
+- Fix: a blank line was left above pasted content. 0.1.11 opened a fresh paragraph
+  before every paste so the insertion had no block tag to inherit; when the caret was
+  already in an empty block — which is every paste into an empty editor — that
+  paragraph was one too many. It is now only opened when the caret's block has
+  something in it, and any empty block left around the insertion is swept up
+  afterwards.
+
+- Change: headings render at the sizes they are published at. The editor's body text
+  moves from 14px to 16px, matching what a page normally sets, and the scale runs
+  h1 32px, h2 24px, h3 20px, h4 18px, h5 16px, h6 15.2px. Previously h1 came out at
+  24.5px — nearer an h2 than an h1 — so a document never looked in the editor the way
+  it would on the page.
+
+- Fix: h3 and h4 were 600 where h1 and h2 were 700, so they read lighter than
+  headings should. All six levels are bold now, as they are in HTML by default. h5
+  and h6 sit close to body size, so they are separated by weight, and h6 by letter
+  spacing, rather than by shrinking below the text around them.
+
 ## 0.1.11
 
 - Fix: pasting a document lost its first heading, and pasting a second time without
