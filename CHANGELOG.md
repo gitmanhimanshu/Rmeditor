@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.10
+
+- Change: pasted headings are now kept at the level they were copied at.
+  0.1.9 demoted them two levels by default, which was the wrong call — sources
+  use `h3` and `h4` for sub-points all the time, so those landed on `h5`/`h6`
+  and rendered no larger than the body text around them. A heading that looks
+  like body text is worse than one that looks big. `demote` and `flatten` remain
+  available through `data-paste-headings`.
+
+- Fix: the heading scale ran below body size. `h4` sat at 1.05em, `h5` at 1em and
+  `h6` at 0.95em against 14px body text, so the lower levels were indistinguishable
+  from ordinary paragraphs — or smaller. Every level is now larger than the body
+  text and carries a heavier weight, and headings get space above them so sections
+  separate visually.
+
+- Fix: the first block in the editor no longer pushes itself down from the top edge.
+
 ## 0.1.9
 
 - Fix: pasted content from ChatGPT, Google Docs and similar arrived with its

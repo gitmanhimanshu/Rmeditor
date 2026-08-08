@@ -134,23 +134,23 @@ editor rather than carrying the source document's layout:
   are unwrapped
 - `<b>`/`<i>` become `<strong>`/`<em>`
 - empty blocks left over from unwrapping are dropped
-- headings are **demoted two levels**, so a source `<h1>` lands at `<h3>`
 
-That last one is the reason a pasted ChatGPT answer no longer arrives at heading
-size. Pasted material sits inside a page that already has its own `h1`, so the
-source's top-level heading should not compete with it.
+**Heading levels are kept exactly as copied.** What changes is that the wrapper and
+the stray divs stop interfering with spacing, so the result reads the way it did in
+the source instead of collapsing into one block.
 
-Change it if the default doesn't suit:
+If pasted content needs to sit under a page's own `h1`, headings can be shifted
+down instead:
 
 ```html
+<!-- source h1 becomes h3, h2 becomes h4, and so on -->
+<script src="{% static 'rmeditor/js/rmeditor.js' %}" data-paste-headings="demote" defer></script>
+
 <!-- headings become bold paragraphs -->
 <script src="{% static 'rmeditor/js/rmeditor.js' %}" data-paste-headings="flatten" defer></script>
-
-<!-- leave headings exactly as pasted (behaviour before 0.1.9) -->
-<script src="{% static 'rmeditor/js/rmeditor.js' %}" data-paste-headings="keep" defer></script>
 ```
 
-Or set `window.RMEDITOR_PASTE_HEADINGS = "flatten"` before the script loads.
+Or set `window.RMEDITOR_PASTE_HEADINGS = "demote"` before the script loads.
 
 Only paste is affected — content already stored, and anything typed or formatted
 with the toolbar, is left exactly as-is.

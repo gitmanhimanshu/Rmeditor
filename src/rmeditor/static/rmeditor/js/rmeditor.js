@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.9 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.10 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.9";
+  var VERSION = "0.1.10";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -135,11 +135,14 @@
     return tmp.innerHTML;
   }
 
-  // How pasted headings are treated: "demote" (default) drops each one two levels
-  // so a source h1 lands at h3, "flatten" turns them into bold paragraphs, "keep"
-  // leaves them alone. Set with data-paste-headings on the script tag or textarea,
-  // or window.RMEDITOR_PASTE_HEADINGS.
-  var HEADING_MODE = "demote";
+  // How pasted headings are treated. "keep" is the default: the heading levels you
+  // copied are the ones you get. Demoting them was tried as the default and was
+  // wrong — sources routinely use h3 and h4 for sub-points, so shifting everything
+  // down two levels turned real headings into text that rendered no larger than the
+  // body around it. "demote" is still available for pages that need pasted content
+  // to sit under their own h1, and "flatten" turns headings into bold paragraphs.
+  // Set with data-paste-headings on the script tag, or window.RMEDITOR_PASTE_HEADINGS.
+  var HEADING_MODE = "keep";
   var HEADING_DEMOTE_BY = 2;
 
   /* Tidy the shape of pasted content.
