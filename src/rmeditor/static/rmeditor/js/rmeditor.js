@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.12 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.13 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.12";
+  var VERSION = "0.1.13";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -447,6 +447,39 @@
     return b;
   }
 
+  // Paragraph format. formatBlock only swaps the block tag, so a font size the
+  // size dropdown left inline keeps winning over the heading and nothing looks
+  // different. Clear the sizes the selection covers first — that only drops a
+  // style property, no node moves, so the restored range stays valid — then let
+  // formatBlock run. Last action wins either way: pick a size after a heading
+  // and the size sticks, pick a heading after a size and the heading sticks.
+  function applyFormat(self, tag) {
+    self.restoreSel();
+    var s = window.getSelection();
+    if (s && s.rangeCount) stripFontSize(self, s.getRangeAt(0));
+    // Angle-bracket form ("<h1>") is what execCommand expects across browsers.
+    try { document.execCommand("formatBlock", false, "<" + tag + ">"); }
+    catch (e) { /* ignore unsupported */ }
+    self.saveSel();
+    self.sync();
+    updateActive(self);
+  }
+
+  // Drop inline font sizing from the elements the range touches, leaving every
+  // other size on the page alone.
+  function stripFontSize(self, range) {
+    var sized = self.area.querySelectorAll('[style*="font-size"], font[size]');
+    for (var i = 0; i < sized.length; i++) {
+      var node = sized[i], hit;
+      try { hit = range.intersectsNode(node); }
+      catch (e) { hit = node.contains(range.commonAncestorContainer); }
+      if (!hit) continue;
+      if (node.style) node.style.removeProperty("font-size");
+      node.removeAttribute("size");
+      if (node.getAttribute("style") === "") node.removeAttribute("style");
+    }
+  }
+
   function makeFormatSelect(self) {
     var sel = el("select", "rme-select");
     sel.title = "Paragraph format";
@@ -462,8 +495,7 @@
     }
     sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
     sel.addEventListener("change", function () {
-      // Angle-bracket form ("<h1>") is what execCommand expects across browsers.
-      self.exec("formatBlock", "<" + sel.value + ">");
+      applyFormat(self, sel.value);
     });
     self._formatSelect = sel;
     return sel;
@@ -481,11 +513,26 @@
     document.execCommand("fontSize", false, "7");
     // Now find all <font size="7"> inside the editor and convert to styled spans
     var fonts = self.area.querySelectorAll('font[size="7"]');
+    var first = null, last = null;
     for (var i = 0; i < fonts.length; i++) {
       var span = document.createElement("span");
       span.style.fontSize = px + "px";
       span.innerHTML = fonts[i].innerHTML;
       fonts[i].parentNode.replaceChild(span, fonts[i]);
+      if (!first) first = span;
+      last = span;
+    }
+    // replaceChild threw away the nodes the selection was pointing at, so the
+    // range is now detached: the highlight disappears and saveSel below keeps
+    // the previous, stale range for the next toolbar command. Rebuild it over
+    // the spans that took their place.
+    if (first) {
+      var r = document.createRange();
+      r.setStartBefore(first);
+      r.setEndAfter(last);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
     }
     self.saveSel();
     self.sync();
@@ -503,6 +550,14 @@
     if (!node || !self.area.contains(node)) return "";
     var computed = window.getComputedStyle(node).fontSize;  // e.g. "16px"
     return Math.round(parseFloat(computed)) || "";
+  }
+
+  function nearestFontSize(px) {
+    var best = FONT_SIZES[0];
+    for (var i = 1; i < FONT_SIZES.length; i++) {
+      if (Math.abs(FONT_SIZES[i] - px) < Math.abs(best - px)) best = FONT_SIZES[i];
+    }
+    return best;
   }
 
   function makeFontSizeSelect(self) {
@@ -554,12 +609,10 @@
     }
     // Sync font-size dropdown to current caret's computed size
     if (self._fontSizeSelect) {
+      // Headings compute to sizes that are not on the list (h3 lands near
+      // 18.7px), so show the closest listed size instead of always saying 16.
       var px = currentFontSize(self);
-      if (px && FONT_SIZES.indexOf(px) !== -1) {
-        self._fontSizeSelect.value = String(px);
-      } else {
-        self._fontSizeSelect.value = "16";
-      }
+      self._fontSizeSelect.value = String(px ? nearestFontSize(px) : 16);
     }
   }
 

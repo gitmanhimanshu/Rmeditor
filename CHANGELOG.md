@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.13
+
+- Fix: a heading picked after a font size did nothing. The size dropdown wraps the
+  selection in a `<span style="font-size:…">`, and `formatBlock` only swaps the block
+  tag, so that inline size went on winning over the heading and the text never
+  changed. Choosing a paragraph format now clears the inline sizes the selection
+  covers, so the format decides the size. The reverse order is unchanged — pick a
+  size after a heading and the size still applies. Whichever you choose last wins.
+
+- Fix: the selection was lost after changing the font size. Swapping each `<font>`
+  marker for a styled `<span>` destroyed the nodes the selection pointed at, so the
+  highlight disappeared and the next toolbar command ran against a stale range. The
+  selection is now rebuilt over the new spans.
+
+- Fix: the font-size dropdown fell back to 16 for any size not on its list, which is
+  what it showed for an h3. It now shows the closest listed size.
+
 ## 0.1.12
 
 - Fix: a blank line was left above pasted content. 0.1.11 opened a fresh paragraph
