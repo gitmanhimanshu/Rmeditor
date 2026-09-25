@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.14
+
+- Fix: font size dropdown and selection synchronization. Previously, selecting text or changing font size caused the dropdown to immediately reset to 16px because the restored range pointed at the parent block element instead of the styled span text. The range is now rebuilt over the span's text contents, and `currentFontSize` accurately inspects child nodes.
+- Fix: nested spans on repeated font size changes. Changing the font size of text that was already sized now cleans inner font-size styles and unwraps redundant parent wrappers, preventing child styles from overriding the new size and preventing DOM bloating.
+- Fix: font size application on collapsed selection. Changing font size with no text highlighted now inserts a styled span with a zero-width space and places the caret inside it, allowing subsequent typed text to immediately adopt the chosen size.
+- Fix: selection loss on dropdown clicks. Added `selectionchange` listener to document and selection saving on dropdown `mousedown` so `self._range` is never stale.
+
 ## 0.1.13
 
 - Fix: a heading picked after a font size did nothing. The size dropdown wraps the

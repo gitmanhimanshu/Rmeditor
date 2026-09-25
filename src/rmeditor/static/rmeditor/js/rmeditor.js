@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.13 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.14 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.13";
+  var VERSION = "0.1.14";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -366,6 +366,17 @@
     area.addEventListener("keyup", function () { saveSel(); updateActive(self); });
     area.addEventListener("mouseup", function () { saveSel(); updateActive(self); });
 
+    document.addEventListener("selectionchange", function () {
+      var s = window.getSelection();
+      if (s && s.rangeCount) {
+        var r = s.getRangeAt(0);
+        if (area.contains(r.commonAncestorContainer)) {
+          saveSel();
+          updateActive(self);
+        }
+      }
+    });
+
     // Clean pasted content.
     area.addEventListener("paste", function (e) {
       e.preventDefault();
@@ -493,7 +504,10 @@
       o.textContent = opts[i][1];
       sel.appendChild(o);
     }
-    sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    sel.addEventListener("mousedown", function (e) {
+      e.stopPropagation();
+      self.saveSel();
+    });
     sel.addEventListener("change", function () {
       applyFormat(self, sel.value);
     });
@@ -509,43 +523,106 @@
 
   function applyFontSize(self, px) {
     self.restoreSel();
+    var s = window.getSelection();
+    if (!s || !s.rangeCount) return;
+    var r = s.getRangeAt(0);
+    if (!self.area.contains(r.commonAncestorContainer)) return;
+
+    // Collapsed selection (caret only, no text highlighted):
+    // Insert a span with zero-width space so typing continues in this font size.
+    if (r.collapsed) {
+      var span = document.createElement("span");
+      span.style.fontSize = px + "px";
+      span.appendChild(document.createTextNode("\u200B"));
+      r.insertNode(span);
+
+      var newRange = document.createRange();
+      newRange.setStart(span.firstChild, 1);
+      newRange.collapse(true);
+      s.removeAllRanges();
+      s.addRange(newRange);
+
+      self.saveSel();
+      self.sync();
+      updateActive(self);
+      return;
+    }
+
     // Use fontSize 7 as a marker — browsers wrap the selection in <font size="7">
     document.execCommand("fontSize", false, "7");
-    // Now find all <font size="7"> inside the editor and convert to styled spans
+
+    // Convert all <font size="7"> to clean styled spans and strip any nested font-size styles
     var fonts = self.area.querySelectorAll('font[size="7"]');
     var first = null, last = null;
     for (var i = 0; i < fonts.length; i++) {
+      var fontNode = fonts[i];
       var span = document.createElement("span");
       span.style.fontSize = px + "px";
-      span.innerHTML = fonts[i].innerHTML;
-      fonts[i].parentNode.replaceChild(span, fonts[i]);
+      span.innerHTML = fontNode.innerHTML;
+
+      // Clean any nested font-size styles inside the newly created span so they don't override the new size
+      var nested = span.querySelectorAll('[style*="font-size"], font[size]');
+      for (var k = 0; k < nested.length; k++) {
+        nested[k].style.removeProperty("font-size");
+        nested[k].removeAttribute("size");
+        if (nested[k].getAttribute("style") === "") nested[k].removeAttribute("style");
+        // If it's a bare span with no remaining attributes, unwrap it
+        if (nested[k].tagName === "SPAN" && !nested[k].attributes.length) {
+          var p = nested[k].parentNode;
+          while (nested[k].firstChild) p.insertBefore(nested[k].firstChild, nested[k]);
+          p.removeChild(nested[k]);
+        }
+      }
+
+      fontNode.parentNode.replaceChild(span, fontNode);
+
+      // If the parent is a SPAN that had font-size and this span is its only child, clean the parent wrapper
+      var parent = span.parentNode;
+      if (parent && parent.tagName === "SPAN" && parent.childNodes.length === 1) {
+        if (parent.style && parent.style.fontSize) parent.style.removeProperty("font-size");
+        if (parent.getAttribute("style") === "") parent.removeAttribute("style");
+        if (!parent.attributes.length) {
+          parent.parentNode.insertBefore(span, parent);
+          parent.parentNode.removeChild(parent);
+        }
+      }
+
       if (!first) first = span;
       last = span;
     }
-    // replaceChild threw away the nodes the selection was pointing at, so the
-    // range is now detached: the highlight disappears and saveSel below keeps
-    // the previous, stale range for the next toolbar command. Rebuild it over
-    // the spans that took their place.
-    if (first) {
-      var r = document.createRange();
-      r.setStartBefore(first);
-      r.setEndAfter(last);
-      var s = window.getSelection();
+
+    // Rebuild selection over the span's text contents (NOT parentNode) so currentFontSize reads the span
+    if (first && last) {
+      var newRange = document.createRange();
+      var startTarget = first.firstChild || first;
+      var endTarget = last.lastChild || last;
+      newRange.setStart(startTarget, 0);
+      newRange.setEnd(
+        endTarget,
+        endTarget.nodeType === 3 ? endTarget.textContent.length : endTarget.childNodes.length
+      );
       s.removeAllRanges();
-      s.addRange(r);
+      s.addRange(newRange);
     }
+
     self.saveSel();
     self.sync();
     updateActive(self);
   }
 
-  // Detect the font-size (in px) at the current caret position.
+  // Detect the font-size (in px) at the current caret position or selection.
   function currentFontSize(self) {
     var node = null;
     var s = window.getSelection();
     if (s && s.rangeCount) {
-      node = s.getRangeAt(0).startContainer;
-      if (node.nodeType === 3) node = node.parentNode;
+      var r = s.getRangeAt(0);
+      node = r.startContainer;
+      // If startContainer is an element node (nodeType 1), inspect the child at startOffset
+      if (node.nodeType === 1 && node.childNodes.length > 0) {
+        var offset = Math.min(r.startOffset, node.childNodes.length - 1);
+        node = node.childNodes[offset];
+      }
+      if (node && node.nodeType === 3) node = node.parentNode;
     }
     if (!node || !self.area.contains(node)) return "";
     var computed = window.getComputedStyle(node).fontSize;  // e.g. "16px"
@@ -576,7 +653,10 @@
       if (FONT_SIZES[i] === 16) o.selected = true;   // default = 16px
       sel.appendChild(o);
     }
-    sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    sel.addEventListener("mousedown", function (e) {
+      e.stopPropagation();
+      self.saveSel();
+    });
     sel.addEventListener("change", function () {
       if (sel.value) applyFontSize(self, parseInt(sel.value, 10));
     });
