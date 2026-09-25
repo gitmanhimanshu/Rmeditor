@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.15
+
+- Fix: "Clear formatting" now completely clears inline font-size, text color, and custom styles from spans and fonts, rather than only stripping bold/italic.
+- Fix: inserting link when no text is highlighted now prompts for link text and cleanly inserts `<a href="..." target="_blank" rel="noopener noreferrer">...</a>` at the cursor.
+- Fix: table cell navigation with Tab/Shift+Tab keys and automatic row addition when pressing Tab at the last cell.
+- Fix: table operations out-of-bounds error handling (`IndexSizeError`) and cursor auto-focus into new cells.
+- Fix: dim table buttons (`+R`, `−R`, `+C`, `−C`) when cursor is not inside a table.
+- Fix: sanitize `iframe`, `object`, `embed`, `vbscript:`, and `data:text/html` in HTML cleaner for enhanced XSS protection.
+- Fix: ensure Enter key creates paragraph blocks (`defaultParagraphSeparator: "p"`) rather than `<div>` tags in Chromium browsers.
+- Fix: update toolbar active states and selection immediately upon paste and when exiting source code mode.
+
 ## 0.1.14
 
 - Fix: font size dropdown and selection synchronization. Previously, selecting text or changing font size caused the dropdown to immediately reset to 16px because the restored range pointed at the parent block element instead of the styled span text. The range is now rebuilt over the span's text contents, and `currentFontSize` accurately inspects child nodes.

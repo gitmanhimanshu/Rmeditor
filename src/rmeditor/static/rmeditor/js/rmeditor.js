@@ -1,5 +1,5 @@
 /*!
- * rmeditor 0.1.14 — a lightweight, self-hosted HTML rich text editor.
+ * rmeditor 0.1.15 — a lightweight, self-hosted HTML rich text editor.
  * HTML in / HTML out. No CDN, no API key, no branding, no limits. MIT License.
  *
  * Usage (plain HTML / Django templates):
@@ -19,7 +19,7 @@
 (function (window, document) {
   "use strict";
 
-  var VERSION = "0.1.14";
+  var VERSION = "0.1.15";
   var SCRIPT = document.currentScript; // captured now, used for data-auto config
 
   // ---- icons (inline SVG so they render identically everywhere) ----------
@@ -68,7 +68,7 @@
     link:        { title: "Insert link",     icon: ICON.link,        fn: "link" },
     unlink:      { title: "Remove link",     icon: ICON.unlink,      cmd: "unlink" },
     image:       { title: "Insert image",    icon: ICON.image,       fn: "image" },
-    removeformat:{ title: "Clear formatting",icon: ICON.removeformat,cmd: "removeFormat" },
+    removeformat:{ title: "Clear formatting",icon: ICON.removeformat,fn: "removeformat" },
     table:       { title: "Insert table",    icon: ICON.table, fn: "table" },
     rowadd:      { title: "Add row below",    text: "+R", fn: "rowadd" },
     rowdel:      { title: "Delete row",       text: "−R", fn: "rowdel" },
@@ -105,19 +105,20 @@
     tmp.innerHTML = html || "";
 
     // Remove dangerous / unwanted elements entirely.
-    var kill = tmp.querySelectorAll("script, style, meta, link, title, o\\:p");
+    var kill = tmp.querySelectorAll("script, style, meta, link, title, iframe, object, embed, o\\:p");
     for (var i = 0; i < kill.length; i++) kill[i].parentNode.removeChild(kill[i]);
 
     var all = tmp.querySelectorAll("*");
     for (var j = 0; j < all.length; j++) {
       var node = all[j];
-      // Strip event handlers + javascript: URLs (XSS guard, since output is |safe).
+      // Strip event handlers + dangerous URLs (XSS guard, since output is |safe).
       for (var a = node.attributes.length - 1; a >= 0; a--) {
         var attr = node.attributes[a];
         var name = attr.name.toLowerCase();
-        var val = (attr.value || "").toLowerCase();
+        var val = (attr.value || "").toLowerCase().replace(/\s/g, "");
         if (name.indexOf("on") === 0) node.removeAttribute(attr.name);
-        else if ((name === "href" || name === "src") && val.replace(/\s/g, "").indexOf("javascript:") === 0)
+        else if ((name === "href" || name === "src") &&
+                 (val.indexOf("javascript:") === 0 || val.indexOf("vbscript:") === 0 || val.indexOf("data:text/html") === 0))
           node.removeAttribute(attr.name);
         else if (paste && (name === "style" || name === "class" || name === "id" ||
                  name === "lang" || name.indexOf("mso-") === 0 || name.indexOf("data-") === 0))
@@ -377,6 +378,8 @@
       }
     });
 
+    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch (e) {}
+
     // Clean pasted content.
     area.addEventListener("paste", function (e) {
       e.preventDefault();
@@ -388,7 +391,54 @@
       } else if (text) {
         document.execCommand("insertText", false, text);
       }
+      saveSel();
       sync();
+      updateActive(self);
+    });
+
+    // Keyboard helpers (e.g. Tab navigation inside table cells)
+    area.addEventListener("keydown", function (e) {
+      if (e.key === "Tab") {
+        var cell = currentCell(self);
+        if (cell) {
+          e.preventDefault();
+          var tr = cell.parentNode;
+          if (e.shiftKey) {
+            var prev = cell.previousElementSibling;
+            if (!prev && tr.previousElementSibling) {
+              var prevRow = tr.previousElementSibling;
+              prev = prevRow.cells[prevRow.cells.length - 1];
+            }
+            if (prev) {
+              var r = document.createRange();
+              r.selectNodeContents(prev);
+              r.collapse(false);
+              var s = window.getSelection();
+              s.removeAllRanges();
+              s.addRange(r);
+              saveSel();
+            }
+          } else {
+            var next = cell.nextElementSibling;
+            if (!next && tr.nextElementSibling) {
+              var nextRow = tr.nextElementSibling;
+              next = nextRow.cells[0];
+            } else if (!next && !tr.nextElementSibling) {
+              tableOp(self, "rowadd");
+              return;
+            }
+            if (next) {
+              var r = document.createRange();
+              r.selectNodeContents(next);
+              r.collapse(true);
+              var s = window.getSelection();
+              s.removeAllRanges();
+              s.addRange(r);
+              saveSel();
+            }
+          }
+        }
+      }
     });
 
     // Flush on the owning form's submit (covers programmatic submits).
@@ -684,7 +734,11 @@
         var v = document.queryCommandValue("formatBlock");
         if (v) block = String(v).toLowerCase().replace(/[<>]/g, "");
       } catch (e) {}
-      if (!/^h[1-3]$/.test(block)) block = "p";
+      if (!/^h[1-3]$/.test(block)) {
+        var host = caretBlock(self.area);
+        if (host && /^H[1-3]$/i.test(host.tagName)) block = host.tagName.toLowerCase();
+        else block = "p";
+      }
       self._formatSelect.value = block;
     }
     // Sync font-size dropdown to current caret's computed size
@@ -694,6 +748,14 @@
       var px = currentFontSize(self);
       self._fontSizeSelect.value = String(px ? nearestFontSize(px) : 16);
     }
+    // Enable/disable table buttons based on cursor position
+    var inCell = !!currentCell(self);
+    ["rowadd", "rowdel", "coladd", "coldel"].forEach(function (k) {
+      if (self.buttons[k]) {
+        self.buttons[k].node.style.opacity = inCell ? "1" : "0.4";
+        self.buttons[k].node.style.pointerEvents = inCell ? "auto" : "none";
+      }
+    });
   }
 
   // ---- table helpers ------------------------------------------------------
@@ -715,7 +777,8 @@
   }
 
   function newCell(row, index) {
-    var c = row.insertCell(index);
+    var idx = (index == null || index < 0 || index > row.cells.length) ? -1 : index;
+    var c = row.insertCell(idx);
     c.setAttribute("style", CELL_STYLE);
     c.innerHTML = "&nbsp;";
     return c;
@@ -728,13 +791,16 @@
     var tr = cell.parentNode;
     var table = cell.closest("table");
     var ci = cell.cellIndex, ri = tr.rowIndex, r;
+    var nr = null;
     if (op === "rowadd") {
-      var nr = table.insertRow(ri + 1);
+      var insertAt = (ri + 1 > table.rows.length) ? -1 : ri + 1;
+      nr = table.insertRow(insertAt);
       for (var i = 0; i < tr.cells.length; i++) newCell(nr, i);
     } else if (op === "rowdel") {
       if (table.rows.length > 1) table.deleteRow(ri);
     } else if (op === "coladd") {
-      for (r = 0; r < table.rows.length; r++) newCell(table.rows[r], ci + 1);
+      for (r = 0; r < table.rows.length; r++)
+        newCell(table.rows[r], Math.min(ci + 1, table.rows[r].cells.length));
     } else if (op === "coldel") {
       if (table.rows[0].cells.length > 1) {
         for (r = 0; r < table.rows.length; r++)
@@ -742,6 +808,19 @@
       }
     }
     self.sync();
+    try {
+      var targetCell = (op === "rowadd" && nr && nr.cells[ci]) ? nr.cells[ci] :
+                       (op === "coladd" && tr.cells[ci + 1]) ? tr.cells[ci + 1] : cell;
+      if (targetCell) {
+        var range = document.createRange();
+        range.selectNodeContents(targetCell);
+        range.collapse(true);
+        var s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(range);
+        self.saveSel();
+      }
+    } catch (e) {}
   }
 
   // ---- custom handlers ----------------------------------------------------
@@ -769,14 +848,71 @@
     coladd: function (self) { tableOp(self, "coladd"); },
     coldel: function (self) { tableOp(self, "coldel"); },
     link: function (self) {
+      self.saveSel();
+      var isCollapsed = !self._range || self._range.collapsed;
+      var text = "";
+      if (isCollapsed) {
+        text = window.prompt("Link text:", "");
+        if (text === null) return;
+      }
       var url = window.prompt("Link URL:", "https://");
-      if (!url) return;
-      self.exec("createLink", url);
+      if (!url || url === "https://") return;
+      self.restoreSel();
+      if (isCollapsed) {
+        var label = text || url;
+        var a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = label;
+        var range = self._range || (window.getSelection() && window.getSelection().rangeCount ? window.getSelection().getRangeAt(0) : null);
+        if (range) {
+          range.insertNode(a);
+          range.setStartAfter(a);
+          range.collapse(true);
+          var s = window.getSelection();
+          s.removeAllRanges();
+          s.addRange(range);
+        }
+        self.saveSel();
+        self.sync();
+      } else {
+        self.exec("createLink", url);
+      }
     },
     image: function (self) {
+      self.saveSel();
       var url = window.prompt("Image URL:", "https://");
-      if (!url) return;
+      if (!url || url === "https://") return;
       self.exec("insertImage", url);
+    },
+    removeformat: function (self) {
+      self.restoreSel();
+      var s = window.getSelection();
+      if (s && s.rangeCount) {
+        var r = s.getRangeAt(0);
+        stripFontSize(self, r);
+        var styled = self.area.querySelectorAll('span[style], font');
+        for (var i = 0; i < styled.length; i++) {
+          var node = styled[i], hit;
+          try { hit = r.intersectsNode(node); }
+          catch (e) { hit = node.contains(r.commonAncestorContainer); }
+          if (!hit) continue;
+          node.removeAttribute("style");
+          node.removeAttribute("color");
+          node.removeAttribute("size");
+          node.removeAttribute("face");
+          if (node.tagName === "SPAN" && !node.attributes.length) {
+            var p = node.parentNode;
+            while (node.firstChild) p.insertBefore(node.firstChild, node);
+            p.removeChild(node);
+          }
+        }
+      }
+      try { document.execCommand("removeFormat", false, null); } catch (e) {}
+      self.saveSel();
+      self.sync();
+      updateActive(self);
     },
     source: function (self, btn) {
       self.isSourceMode = !self.isSourceMode;
@@ -788,6 +924,7 @@
         self.area.innerHTML = clean(self.textarea.value, false) || "";
         self.wrap.classList.remove("rme-source-mode");
         btn.classList.remove("rme-active");
+        updateActive(self);
       }
     },
     forecolor: function (self, btn) { togglePalette(self, btn); },
